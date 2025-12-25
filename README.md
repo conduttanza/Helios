@@ -47,13 +47,14 @@ Clone the repository:
 ```bash
 git clone https://github.com/conduttanza/Helios.git
 cd Helios
-
+```
 Install required packages:
 
 ```bash
 pip install -r requirements.txt
-
+```
 begin:
 
 ```bash
 python window.py
+```
