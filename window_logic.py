@@ -11,17 +11,17 @@ import time
 class Config:
     
     #universal values
-    stream_url = None
+    stream_url = None #"http://ip:stream@192.168.1.3:8080/video"
     web_url = 'https://'
     threshold_value = 0.01   # threshold for change detection
     
     #config values
     fps = 30
     delay = 1 / (5*fps)
-    side_x = 1080
+    side_x = 900
     side_y = int(side_x * (768/1366))
     size_tolerance = 100
-    gimBallRadius = side_x / 4
+    gimBallRadius = side_x / 10
     gimbalDownArrowLen = 1/5
     #FUNCTIONS TO ACTIVATE
     doImageScaling = False
@@ -55,14 +55,8 @@ class Logic(Config):
             wb.open(url, new=2)
             
     def writeText(self):
-        text = 'TS WAS MY HAND NOWAY LMAO'
-        pg.press('win')
-        time.sleep(1)
-        pg.write('blocco note')
-        pg.press('enter')
-        time.sleep(2)
-        pg.write(text)
-
+        print('cant write rn, ty for the patience')
+    
     def gimbalReader(self, hand_lmks):
         if Config.doGimbalReader == True and hand_lmks != None:
             x_len = hand_lmks.landmark[20].x - hand_lmks.landmark[4].x

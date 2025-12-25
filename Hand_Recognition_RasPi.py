@@ -8,8 +8,9 @@ import time
 from threading import Thread, Lock
 import math
 import numpy as np
+import pygame
 
-#hand recognition imports
+#hand recognition import
 #
 #using the mediapipe library 
 #
@@ -33,10 +34,6 @@ class Hands_Reckon:
     
     def __init__(self):
         #time.sleep(Config.delay)
-        self.stream_url = Config.stream_url
-        self.cap = cv2.VideoCapture(self.stream_url or 0, cv2.CAP_DSHOW)
-        if not self.cap.isOpened():
-            raise RuntimeError("Cannot use camera")
         self.hand_landmarks = None
         self.ret = False
         self.frame = None
@@ -48,7 +45,10 @@ class Hands_Reckon:
         self.new_side_x = 0
         self.new_side_y = 0
         self.handAngle = None
-        self.lock = Lock
+        self.lock = Lock()
+        self.cap = image.get_cap()
+        if not self.cap.isOpened():
+            raise RuntimeError("Cannot use camera")
         Thread(target=self.update, daemon=True).start()
         
     def update(self):
@@ -60,7 +60,7 @@ class Hands_Reckon:
             while self.cap.isOpened() and self.running:
                 ret, frame = self.cap.read()
                 if not ret:
-                    time.sleep(config.delay)
+                    #time.sleep(config.delay)
                     print('Empty frame', '\n', 'skipping...')
                     continue
                 frame.flags.writeable = False #improved performance
@@ -96,19 +96,19 @@ class Hands_Reckon:
                 self.frame = frame.copy()
                 #time.sleep(Config.delay)
     
-    def show_recon(self):
-        if not self.ret:
+    def showStream(self):         
+        ret, frame = self.cap.read()
+        if not ret:
             return
-        if self.new_side_x and self.new_side_y:
-            if (self.new_side_x - self.newXcopy) > config.size_tolerance and (self.new_side_y - self.newYcopy) > config.size_tolerance:
-                size = [self.new_side_x, self.new_side_y]
-            else:
-                size = [self.newXcopy, self.newYcopy]
-        else:
-            size = [config.side_x, config.side_y]
-        frame_rgb = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
-        frame_rgb = cv2.resize(frame_rgb, (size[0], size[1]))
-        cv2.imshow('tracker', cv2.flip(frame_rgb, 1))
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_rgb = cv2.flip(frame_rgb, 1)    
+        frame_rgb = cv2.resize(frame_rgb, (config.side_x, config.side_y))
+        pygameSurface = pygame.image.frombuffer(
+        frame_rgb.tobytes(),
+        frame_rgb.shape[1::-1],
+        'RGB'
+        )
+        return pygameSurface
     
     def scaling(self):
         self.indexThumbDistance = math.sqrt(
@@ -127,7 +127,7 @@ class Hands_Reckon:
             ]
         self.scale_for_hand = math.sqrt((self.hand_scale[0]-self.hand_scale[2])**2+(self.hand_scale[1]-self.hand_scale[3])**2)
         scale = self.indexThumbDistance/self.scale_for_hand
-        x, y = logic.scaling(scale) # y would be the y height though not used to keep the best ratio
+        x, y = logic.scaling(scale) # y would be the y height though not used to keep the best window ratio
         self.newXcopy = self.new_side_x
         self.newYcopy = self.new_side_y
         self.new_side_x = int(x)
@@ -202,80 +202,33 @@ class Hands_Reckon:
         self.running = False
         self.cap.release()
         cv2.destroyAllWindows()
-'''
 
+class torchProcess:
+    old_frame = None
+
+    def __init__(self,frame):
+        self.frame = frame
+        self.old_frame = None
     
-def handRecognition():
-    #time.sleep(Config.delay) 
-    
-    cap = cv2.VideoCapture(Config.stream_url or 0)
-    with mp_hands.Hands(
-        model_complexity = 0, 
-        min_detection_confidence = 0.5,
-        min_tracking_confidence = 0.5) as hands:
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                print('Empty frame, ', '\n', 'Ignoring...')
-                continue
-            
-            # To de-improve performance, optionally mark the image as writeable to
-            # pass by reference.
-            # 
-            
-            
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame.flags.writeable = True
-            
-            
-            frame.flags.writeable = False
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
-            results = hands.process(frame)
-            if results.multi_hand_landmarks:
-                for hand_landmarks in results.multi_hand_landmarks:
-                    mp_drawing.draw_landmarks(
-                        frame,
-                        hand_landmarks,
-                        mp_hands.HAND_CONNECTIONS,
-                        mp_drawing_styles.get_default_hand_landmarks_style(),
-                        mp_drawing_styles.get_default_hand_connections_style()
-                    )
-                    hand_landmarks.landmark[8] 
-                    hand_landmarks.landmark[4]
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            cv2.imshow('MediaPipe Hands', cv2.flip(rgb_frame, 1))
-            #process_frame(rgb_frame)
-            if cv2.waitKey(5) & 0xFF == 27:
-                break
-        cap.release()
-        cv2.destroyAllWindows()
+    def process_frame(self):
+        """Process a single frame for change detection.
 
+        Call this from your main loop and pass the latest frame. This avoids
+        instantiating Image() repeatedly (which opens the camera multiple times).
+        """
+        if self.frame is None:
+            return
 
-'''
+        if self.old_frame is None:
+            self.old_frame = self.frame.copy()
+            return
 
-
-old_frame = None
-   
-def process_frame(frame):
-    """Process a single frame for change detection.
-
-    Call this from your main loop and pass the latest frame. This avoids
-    instantiating Image() repeatedly (which opens the camera multiple times).
-    """
-    global old_frame
-    if frame is None:
-        return
-
-    if old_frame is None:
-        old_frame = frame.copy()
-        return
-
-    frame_tensor = torch.from_numpy(frame).permute(2, 0, 1).float() / 255.0
-    old_frame_tensor = torch.from_numpy(old_frame).permute(2, 0, 1).float() / 255.0
-    diff = torch.abs(frame_tensor - old_frame_tensor)
-    if diff.mean().item() > Config.threshold_value:
-        print("Significant change detected in the frame.")
-    else:
-        print("No significant change.")
-    old_frame = frame.copy()
+        self.frame_tensor = torch.from_numpy(self.frame).permute(2, 0, 1).float() / 255.0
+        self.old_frame_tensor = torch.from_numpy(self.old_frame).permute(2, 0, 1).float() / 255.0
+        self.diff = torch.abs(self.frame_tensor - self.old_frame_tensor)
+        if self.diff.mean().item() > Config.threshold_value:
+            print("Significant change detected in the frame.")
+        else:
+            #print("No significant change.")
+            pass
+        self.old_frame = self.frame.copy()

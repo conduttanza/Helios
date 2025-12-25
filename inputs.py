@@ -46,6 +46,9 @@ class Image:
     def get_frame(self):
         return self.frame.copy() if self.ret else None
     
+    def get_cap(self):
+        return self.cap if self.cap else None
+    
     def stop(self):
         self.running = False
         self.cap.release()

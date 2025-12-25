@@ -6,3 +6,6 @@ pygame>=2.1,<2.6
 # ML / vision
 torch>=2.0,<2.3
 mediapipe>=0.10,<0.11
+
+# Secondary
+pyautogui
